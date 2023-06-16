@@ -2,14 +2,14 @@
 --
 -- Explain some basics, or the design.
 --
--- @copyright Copyright (c) [copyright-year]-[copyright-year] [your-name]
--- @author [your-name]
+-- @copyright Copyright (c) 2023-2023 Thijs Schreijer
+-- @author Thijs Schreijer
 -- @license MIT, see `LICENSE.md`.
 
 local M = {}
 M._VERSION = "0.0.1"
-M._COPYRIGHT = "Copyright (c) [copyright-year]-[copyright-year] [your-name]"
-M._DESCRIPTION = "[short-description]"
+M._COPYRIGHT = "Copyright (c) 2023-2023 Thijs Schreijer"
+M._DESCRIPTION = "Homie library for version 5"
 
 
 --- Does something.

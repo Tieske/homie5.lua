@@ -1,6 +1,6 @@
-project='[repo-name]'
-title='[module-name] docs'
-description='[short-description]'
+project='homie5.lua'
+title='homie5 docs'
+description='Homie library for version 5'
 
 format='markdown'
 use_markdown_titles = true
