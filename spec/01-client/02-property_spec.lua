@@ -1,3 +1,5 @@
+local EMPTY_STRING_PLACEHOLDER = string.char(0)
+
 describe("Homie device", function()
 
   local D
@@ -32,7 +34,8 @@ describe("Homie device", function()
 
     it("string", function()
       prop.datatype = "string"
-      assert("hello", prop:unpack("hello"))
+      assert.equals("hello", prop:unpack("hello"))
+      assert.equals("", prop:unpack(EMPTY_STRING_PLACEHOLDER))
     end)
 
     it("integer", function()
@@ -277,6 +280,7 @@ describe("Homie device", function()
     it("string", function()
       prop.datatype = "string"
       assert.equal("hello", prop:pack("hello"))
+      assert.equal(EMPTY_STRING_PLACEHOLDER, prop:pack(""))
     end)
 
     it("integer", function()
