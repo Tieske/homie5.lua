@@ -349,7 +349,6 @@ describe("Homie device", function()
       node = {
         id = "mynode",
         name = "thermostat",
-        type = "horstmann",
         properties = {
           propid = {
             name = "setpoint",
@@ -400,25 +399,6 @@ describe("Homie device", function()
 
     end)
 
-    describe("$type attribute", function()
-
-      it("is required", function()
-        node.type = nil
-        assert(not D._validate_node(node, dev))
-      end)
-
-      it("must be a string", function()
-        node.type = 123
-        assert(not D._validate_node(node, dev))
-      end)
-
-      it("cannot be empty string", function()
-        node.type = ""
-        assert(not D._validate_node(node, dev))
-      end)
-
-    end)
-
     it("$properties is required", function()
       node.properties = nil
       assert(not D._validate_node(node, dev))
@@ -437,7 +417,6 @@ describe("Homie device", function()
       nodes = {
         nodeid = {
           name = "thermostat",
-          type = "horstmann",
           properties = {
             propid = {
               name = "setpoint",
@@ -504,7 +483,6 @@ describe("Homie device", function()
         nodes = {
           nodeid = {
             name = "thermostat",
-            type = "horstmann",
             properties = {
               propid = {
                 name = "setpoint",
@@ -624,7 +602,6 @@ describe("Homie device", function()
         nodes = {
           nodeid = {
             name = "thermostat",
-            type = "horstmann",
             properties = {
               propid = {
                 name = "setpoint",

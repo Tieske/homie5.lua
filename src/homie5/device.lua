@@ -32,9 +32,6 @@ Node.__index = Node
 --- The name of the Node (string, read-only).
 -- @field Node.name
 
---- The type of the Node (string, read-only).
--- @field Node.type
-
 --- Hash-table with the Node's properties indexed by `Property.id` (read-only).
 -- @field Node.properties
 
@@ -825,10 +822,6 @@ local function validate_node(node, device)
     return nil, "expected `node.name` to be a string of at least 1 character"
   end
 
-  if type(node.type) ~= "string" or #node.type < 1 then
-    return nil, "expected `node.type` to be a string of at least 1 character"
-  end
-
   if type(node.properties) ~= "table" then
     return nil, "expected `node.properties` to be a table"
   end
@@ -841,7 +834,6 @@ local function validate_node(node, device)
   for key in pairs(node) do
     if not ({
         name = true,
-        type = true,
         properties = true,
         id = true,
         device = true,
@@ -1115,7 +1107,6 @@ function Device:publish_device()
   for nodeid, node in pairs(self.nodes) do
     nds[#nds+1] =  nodeid
     topics[self.base_topic .. nodeid .."/$name"] = node.name
-    topics[self.base_topic .. nodeid .."/$type"] = node.type
     local props = {}
     for propid, prop in pairs(node.properties) do
       props[#props+1] = propid
