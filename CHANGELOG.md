@@ -4,7 +4,7 @@
 
 - create a release branch
 - update the changelog below
-- update version and copyright-years in `./LICENSE` and `./src/homie5/init.lua` (in doc-comments
+- update version and copyright-years in `./LICENSE` and `./src/homie5/meta.lua` (in doc-comments
   header, and in module constants)
 - create a new rockspec and update the version inside the new rockspec:<br/>
   `cp homie5-scm-1.rockspec ./rockspecs/homie5-X.Y.Z-1.rockspec`

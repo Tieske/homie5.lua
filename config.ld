@@ -1,5 +1,5 @@
 project='homie5.lua'
-title='homie5 docs'
+title='Homie5 docs'
 description='Homie library for version 5'
 
 format='markdown'

@@ -15,9 +15,10 @@ source = {
 }
 
 description = {
-  summary = "Homie library for version 5",
+  summary = "Homie library for version 5 (an MQTT convention for IoT/M2M)",
   detailed = [[
-    Homie library for version 5
+    Homie.lua provides a Lua based Homie v5 implementation for devices and
+    controllers.
   ]],
   license = "MIT",
   homepage = "https://github.com/"..github_account_name.."/"..github_repo_name,
@@ -25,19 +26,20 @@ description = {
 
 dependencies = {
   "lua >= 5.1, < 5.5",
+  "copas >= 4.3, < 5",
+  --"luamqtt",  -- do: "luarocks install Tieske/luamqtt --dev" for now
+  "lualogging >= 1.6",
+  "penlight ~> 1",
 }
 
 build = {
   type = "builtin",
 
   modules = {
-    ["homie5.init"] = "src/homie5/init.lua",
-  },
-
-  install = {
-    bin = {
-      ["homie5"] = "bin/homie5.lua",
-    }
+    ["homie.meta"] = "src/homie/meta.lua",
+    ["homie.utils"] = "src/homie/utils.lua",
+    ["homie.device"] = "src/homie/device.lua",
+    ["homie.controller"] = "src/homie/controller.lua",
   },
 
   copy_directories = {
