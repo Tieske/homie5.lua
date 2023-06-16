@@ -4,7 +4,7 @@ describe("Homie device", function()
 
   setup(function()
     _G._TEST = true
-    D = require "homie.Device"
+    D = require "homie5.device"
   end)
 
   teardown(function()

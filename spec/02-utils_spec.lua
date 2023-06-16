@@ -3,7 +3,7 @@ describe("Homie utils", function()
   local U
 
   setup(function()
-    U = require "homie.utils"
+    U = require "homie5.utils"
   end)
 
 

@@ -11,7 +11,7 @@ local pl_utils = require "pl.utils"
 local log = require("logging").defaultLogger()
 local Semaphore = require "copas.semaphore"
 local copas = require "copas"
-local utils = require "homie.utils"
+local utils = require "homie5.utils"
 
 -- Node implementation ---------------------------------------------------------
 local Node = {}
@@ -575,7 +575,7 @@ end
 
 local Device = {}
 Device.__index = Device
-require("homie.meta")(Device)
+require("homie5.meta")(Device)
 
 log:info("[homie] loaded homie.lua library; Device (version %s)", Device._VERSION)
 

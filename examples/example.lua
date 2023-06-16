@@ -1,5 +1,5 @@
 local copas = require "copas"
-local Device = require "homie.device"
+local Device = require "homie5.device"
 local log = require("logging").defaultLogger() -- https://github.com/lunarmodules/lualogging
 
 local dev = {
