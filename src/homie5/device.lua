@@ -1039,7 +1039,7 @@ function Device:__init()
     will = {
       topic = self.base_topic .. "$state",
       payload = self.states.lost,
-      qos = 1,
+      qos = 2,
       retain = true,
     }
   }
@@ -1155,7 +1155,7 @@ function Device:send_property_update(topic, pvalue, retained)
   return self.mqtt:publish {
     topic = topic,
     payload = pvalue,
-    qos = 1,
+    qos = retained and 2 or 0, -- "exactly once" (2) unless non-retained, then "at most once" (0)
     retain = retained,
     -- callback = function(...)
       -- TODO: implement, but what? timeout reporting?
@@ -1176,7 +1176,7 @@ function Device:set_state(newstate, timeout)
   self.mqtt:publish {
     topic = self.base_topic .. "$state",
     payload = self.states[newstate],
-    qos = 1,
+    qos = 2,
     retain = true,
     callback = function()
       s:give(1)
