@@ -78,7 +78,6 @@ describe("Homie device", function()
 
     it("allows valid formats", function()
       local v = D._validate_format
-      assert(v("percent", "0:100"))
       assert(v("float", "0.111:9.999"))
       assert(v("integer", "-100:100"))
       assert(v("enum", "a,b,c"))
@@ -89,7 +88,6 @@ describe("Homie device", function()
     it("fails invalid formats", function()
       local v = D._validate_format
       -- number formats
-      assert(not v("percent", 0))
       assert(not v("float", ":9.999"))
       assert(not v("integer", "100:-100"))
       -- color

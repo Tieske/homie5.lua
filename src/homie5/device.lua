@@ -13,6 +13,8 @@ local Semaphore = require "copas.semaphore"
 local copas = require "copas"
 local utils = require "homie5.utils"
 
+local EMPTY_STRING_PLACEHOLDER = string.char(0) -- used to replace empty strings in MQTT values
+
 -- Node implementation ---------------------------------------------------------
 local Node = {}
 Node.__index = Node
@@ -143,6 +145,9 @@ do
   local unpackers
   unpackers = {
     string = function(prop, value)
+      if value == EMPTY_STRING_PLACEHOLDER then
+        return ""
+      end
       return value
     end,
 
@@ -164,14 +169,6 @@ do
         end
       end
       return nil, ("bad float value: '%s'"):format(value)
-    end,
-
-    percent = function(prop, value)
-      local v = unpackers.float(prop, value)
-      if not v then
-        return nil, ("bad percent value: '%s'"):format(value)
-      end
-      return v
     end,
 
     boolean = function(prop, value)
@@ -289,14 +286,6 @@ do
                     format(tostring(prop.format), tostring(value), type(value))
     end,
 
-    percent = function(prop, value)
-      if type(value) == "number" and check_min_max(prop, value) then
-        return true
-      end
-      return false, ("value is not a percentage matching format '%s', got: '%s' (%s)"):
-                    format(tostring(prop.format), tostring(value), type(value))
-    end,
-
     boolean = function(prop, value)
       -- using Lua falsy/truthy, no hard boolean checks
       return true
@@ -384,6 +373,9 @@ do
   local packers
   packers = {
     string = function(prop, value)
+      if value == "" then
+        return EMPTY_STRING_PLACEHOLDER
+      end
       return value
     end,
 
@@ -392,10 +384,6 @@ do
     end,
 
     float = function(prop, value)
-      return tostring(value)
-    end,
-
-    percent = function(prop, value)
       return tostring(value)
     end,
 
@@ -597,7 +585,6 @@ Device.datatypes = {
   string = "string",
   integer = "integer",
   float = "float",
-  percent = "percent",
   boolean = "boolean",
   enum = "enum",
   color = "color",
@@ -648,7 +635,7 @@ local function validate_broadcast_topic(self, topic)
 end
 
 -- wraps a broadcast handler function.
--- does the acknowledge, calls the handler while injuecting 'self' (the device).
+-- does the acknowledge, calls the handler while injecting 'self' (the device).
 local function create_broadcast_handler(device, handler)
   return function(msg)
     local ok, err = device.mqtt:acknowledge(msg)
@@ -668,8 +655,7 @@ local function validate_format(datatype, format)
     return nil, "expected `property.format` to be a string"
   end
 
-  -- we're also allowing percent dattype here
-  if datatype == "integer" or datatype == "float" or datatype == "percent" then
+  if datatype == "integer" or datatype == "float" then
     local min, max = pl_utils.splitv(format, ":", 2)
     if not min or not max then
       return nil, "bad min:max format specified"
@@ -752,17 +738,6 @@ local function validate_property(prop)
     local ok, err = validate_format(prop.datatype, prop.format)
     if not ok then
       return nil, err
-    end
-  end
-
-  -- percent special case
-  if prop.datatype == "percent" then
-    if prop.unit == nil then
-      prop.unit = "%"
-    else
-      if prop.unit ~= "%" then
-        return nil, "expected `property.unit` to be '%' for datatype 'percent', if given"
-      end
     end
   end
 

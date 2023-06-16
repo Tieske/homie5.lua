@@ -65,22 +65,6 @@ describe("Homie device", function()
       assert(not prop:unpack(" 1 "))
     end)
 
-    it("percent", function()
-      prop.datatype = "float"
-      assert.equals(10, prop:unpack("10"))
-      assert.equals(-10, prop:unpack("-10"))
-      assert.equals(100000, prop:unpack("10e4"))
-      assert.equals(-100000, prop:unpack("-10e4"))
-      assert.equals(10.1, prop:unpack("10.1"))
-      assert.equals(-10.1, prop:unpack("-10.1"))
-      assert.equals(101000, prop:unpack("10.1e4"))
-      assert.equals(-101000, prop:unpack("-10.1e4"))
-      assert(not prop:unpack("abc"))
-      assert(not prop:unpack(""))
-      assert(not prop:unpack("-"))
-      assert(not prop:unpack(" 1 "))
-    end)
-
     it("boolean", function()
       prop.datatype = "boolean"
       assert.equals(true, prop:unpack("true"))
@@ -169,21 +153,6 @@ describe("Homie device", function()
 
     it("float", function()
       prop.datatype = "float"
-      prop.format = "-100.1e1:100.1e1"
-      assert.is.True(prop:validate(12))
-      assert.is.True(prop:validate(-12))
-      assert.is.True(prop:validate(12.1))
-      assert.is.True(prop:validate(-12.1))
-      assert.is.False(prop:validate("123"))
-      assert.is.False(prop:validate(-1000000))
-      assert.is.False(prop:validate(1000000))
-
-      prop.format = nil -- format is optional
-      assert.is.True(prop:validate(12))
-    end)
-
-    it("percent", function()
-      prop.datatype = "percent"
       prop.format = "-100.1e1:100.1e1"
       assert.is.True(prop:validate(12))
       assert.is.True(prop:validate(-12))
@@ -324,14 +293,6 @@ describe("Homie device", function()
       assert.equal("-123.1", prop:pack(-123.1))
     end)
 
-    it("percent", function()
-      prop.datatype = "percent"
-      assert.equal("123", prop:pack(123))
-      assert.equal("-123", prop:pack(-123))
-      assert.equal("123.1", prop:pack(123.1))
-      assert.equal("-123.1", prop:pack(-123.1))
-    end)
-
     it("boolean", function()
       prop.datatype = "boolean"
       assert.equal("true", prop:pack(true))
@@ -392,12 +353,6 @@ describe("Homie device", function()
 
     it("float", function()
       prop.datatype = "integer"
-      assert.is.True(prop:values_same(10.1, 10.1))
-      assert.is.False(prop:values_same(10.1, 11.1))
-    end)
-
-    it("percent", function()
-      prop.datatype = "percent"
       assert.is.True(prop:values_same(10.1, 10.1))
       assert.is.False(prop:values_same(10.1, 11.1))
     end)
