@@ -119,8 +119,11 @@ describe("Homie device", function()
       assert(v("integer", "-100::5"))
 
       assert(v("enum", "a,b,c"))
+
       assert(v("color", "hsv"))
       assert(v("color", "rgb"))
+
+      assert(v("boolean", "off,on"))
     end)
 
     it("fails invalid formats", function()
@@ -128,13 +131,25 @@ describe("Homie device", function()
       -- number formats
       assert(not v("float", "abc:abc"))
       assert(not v("float", "1:10:1:5"))
+      assert(not v("float", ""))
       assert(not v("integer", "abc:abc"))
-      assert(not v("float", "1:10:1:5"))
+      assert(not v("integer", "1:10:1:5"))
+      assert(not v("integer", ""))
+
       -- color
       assert(not v("color", "not hsv nor rgb"))
+
       -- enum
       assert(not v("enum", ",hsv"))
       assert(not v("enum", "hsv, rgb ,whitespace"))
+
+      -- boolean
+      assert(not v("boolean", ""))
+      assert(not v("boolean", "off"))
+      assert(not v("boolean", "off,on,unknown"))
+      assert(not v("boolean", ",on"))
+      assert(not v("boolean", "off,"))
+
       -- datatype without format
       assert(not v("datetime", "value"))
     end)

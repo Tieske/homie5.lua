@@ -677,11 +677,11 @@ local function validate_format(datatype, format)
   if type(format) ~= "string" then
     return nil, "expected `property.format` to be a string"
   end
+  if format == "" then
+    return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+  end
 
   if datatype == "integer" or datatype == "float" then
-    if format == "" then
-      return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
-    end
     local min, max, step, too_many = pl_utils.splitv(format, ":", 3)
     if too_many then
       return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
@@ -723,6 +723,14 @@ local function validate_format(datatype, format)
       end
     end
 
+  elseif datatype == "boolean" then
+    local falsy, truthy, too_many = pl_utils.splitv(format, ",", 3)
+    if falsy == nil or truthy == nil or too_many ~= nil then
+      return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+    end
+    if falsy == "" or truthy == "" then
+      return nil, "boolean format cannot have empty strings"
+    end
 
   elseif datatype == "color" then
     if format ~= "hsv" and format ~= "rgb" then
