@@ -47,27 +47,53 @@ describe("Homie device", function()
 
 
 
+  describe("validate_domain()", function()
+
+    it("allows valid segments", function()
+      local v = D._validate_domain
+      assert.equal("homie/5", v("homie"))
+      assert.equal("homie/5", v("homie/"))
+      assert.equal("homie/5", v("homie/5"))
+      assert.equal("homie/5", v("homie/5/"))
+      assert.equal("homie/5/more/5", v("homie/5/more"))
+      assert.equal("/homie/5", v("/homie"))
+      assert.equal("/5", v("/5"))
+      assert.equal("/5", v("/5/"))
+      assert.equal("/5", v("/"))
+      assert.equal("/5", v(""))
+    end)
+
+    it("fails on bad segment", function()
+      local v = D._validate_domain
+      assert.is.Nil(v("HOMIE"))
+      assert.is.Nil(v("first/#$%/third"))
+    end)
+
+  end)
+
+
+
   describe("validate_broadcast_topic()", function()
 
-    local d = { domain = "domain" }
+    local d = { domain = "domain/5" }
 
     it("qualifies relative topics", function()
       local v = D._validate_broadcast_topic
-      assert(v(d, "hello") == "domain/$broadcast/hello")
-      assert(v(d, "hello/there") == "domain/$broadcast/hello/there")
-      assert(v(d, "/hello") == "domain/$broadcast/hello")
-      assert(v(d, "/hello/there") == "domain/$broadcast/hello/there")
+      assert(v(d, "hello") == "domain/5/$broadcast/hello")
+      assert(v(d, "hello/there") == "domain/5/$broadcast/hello/there")
+      assert(v(d, "/hello") == "domain/5/$broadcast/hello")
+      assert(v(d, "/hello/there") == "domain/5/$broadcast/hello/there")
     end)
 
     it("keeps qualified topics", function()
       local v = D._validate_broadcast_topic
-      assert(v(d, "domain/$broadcast/hello") == "domain/$broadcast/hello")
+      assert(v(d, "domain/5/$broadcast/hello") == "domain/5/$broadcast/hello")
     end)
 
     it("checks proper domain", function()
       local v = D._validate_broadcast_topic
       -- domain in 'd' == 'domain', which doesn't match 'homie' given here
-      assert(not v(d, "homie/$broadcast/hello"))
+      assert(not v(d, "homie/5/$broadcast/hello"))
     end)
 
   end)
@@ -588,7 +614,7 @@ describe("Homie device", function()
     before_each(function()
       -- set to something valid before each test
       dev = {
-        domain = "not-homie",
+        domain = "not-homie/5",
         id = "123",
         uri = "mqtts://mqtt.broker.com",
         -- homie properties
@@ -597,7 +623,7 @@ describe("Homie device", function()
         extensions = "",
         implementation = "my device",
         broadcast = {
-          ["not-homie/$broadcast/alerts"] = function() end
+          ["not-homie/5/$broadcast/alerts"] = function() end
         },
         nodes = {
           nodeid = {
@@ -656,7 +682,7 @@ describe("Homie device", function()
           dev.domain = nil  -- defaults to "homie"
           D.new(dev)
         end)
-        assert.equal("homie", dev.domain)
+        assert.equal("homie/5", dev.domain)
 
         assert.has.error(function()
           dev.domain = 123  -- must be a string

@@ -595,7 +595,7 @@ Device.datatypes = {
 -- @return valid segment, or nil+err
 local function validate_segment(segment, attrib)
   if type(segment) ~= "string" then
-    return nil, "expected sgement to be a string"
+    return nil, "expected segment to be a string"
   end
   local t = segment
   if attrib then
@@ -609,6 +609,32 @@ local function validate_segment(segment, attrib)
   end
   return nil, ("invalid Homie topic segment; '%s', only: a-z, 0-9 and '-' (not start nor end with '-')"):format(segment)
 end
+
+
+-- validate homie domain.
+-- This will modify and update the domain, to include the trailing "/5" if needed.
+-- Any trailing '/' will be removed (prefixes not).
+-- @param domain string the domain to validate
+-- @return valid segment, or nil+err
+local function validate_domain(domain)
+  if type(domain) ~= "string" then
+    return nil, "expected domain to be a string"
+  end
+  local d = domain
+  d = d:gsub("/$", "") -- remove trailing '/'
+  d = d:gsub("/5$", "") -- remove trailing '/5'
+  local s = pl_utils.split(d, "/")
+  for _, segment in ipairs(s) do
+    if segment ~= "" then
+      local ok, err = validate_segment(segment)
+      if not ok then
+        return nil, err
+      end
+    end
+  end
+  return table.concat(s, "/").."/5"
+end
+
 
 -- validates a broadcast topic, and fully qualifies it.
 -- @param self the device object
@@ -933,7 +959,7 @@ end
 
 --- Instantiate a new Homie device.
 -- @tparam table[opt={}] opts Options table to create the instance from.
--- @tparam[opt="homie/"] string opts.domain base domain
+-- @tparam[opt="homie"] string opts.domain base domain
 -- @tparam[opt] string opts.id device id. Defaults to `homie-lua-xxxxxxx` randomized.
 -- @return new device object.
 function Device.new(opts, empty)
@@ -948,10 +974,7 @@ end
 --- Initializer, called upon instantiation.
 function Device:__init()
   -- domain: Base topic
-  if self.domain == nil then
-    self.domain = "homie"
-  end
-  self.domain = assert(validate_segment(self.domain))
+  self.domain = assert(validate_domain(self.domain or "homie"))
 
   -- id: Homie device ID
   if self.id == nil then
@@ -1281,6 +1304,7 @@ end
 if _G._TEST then
   -- export local functions for test purposes
   Device._validate_segment = validate_segment
+  Device._validate_domain = validate_domain
   Device._validate_broadcast_topic = validate_broadcast_topic
   Device._validate_format = validate_format
   Device._validate_property = validate_property
