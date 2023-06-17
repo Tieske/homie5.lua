@@ -6,7 +6,7 @@ format='markdown'
 use_markdown_titles = true
 style="./doc_topics/"
 
-file={'./src/', './bin/'}
+file={'./src/'}
 topics={'./doc_topics/', './LICENSE.md', './CHANGELOG.md'}
 examples = {'./examples'}
 
