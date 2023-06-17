@@ -562,7 +562,7 @@ local Device = {}
 Device.__index = Device
 require("homie5.meta")(Device)
 
-log:info("[homie] loaded homie.lua library; Device (version %s)", Device._VERSION)
+log:info("[homie] loaded homie5.lua library; Device (version %s)", Device._VERSION)
 
 -- device states enumeration
 Device.states = setmetatable({
@@ -679,20 +679,37 @@ local function validate_format(datatype, format)
   end
 
   if datatype == "integer" or datatype == "float" then
-    local min, max = pl_utils.splitv(format, ":", 2)
-    if not min or not max then
-      return nil, "bad min:max format specified"
+    if format == "" then
+      return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
     end
-    local min = tonumber(min)
-    if not min then
-      return nil, "bad min:max format specified"
+    local min, max, step, too_many = pl_utils.splitv(format, ":", 3)
+    if too_many then
+      return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
     end
-    local max = tonumber(max)
-    if not max then
-      return nil, "bad min:max format specified"
+    if min == nil or min == "" then
+      min = nil
+    else
+      min = tonumber(min)
+      if not min then
+        return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+      end
     end
-    if min > max then
-      return nil, "bad min:max format specified"
+    if max == nil or max == "" then
+      max = nil
+    else
+      max = tonumber(max)
+      if not max then
+        return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+      end
+    end
+    if step ~= nil and step ~= "" then
+      step = tonumber(step)
+      if not step then
+        return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+      end
+    end
+    if min and max and min > max then
+      return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
     end
 
   elseif datatype == "enum" then
@@ -943,9 +960,9 @@ local function validate_device(device)
     return nil, "expected `device.implementation` to be a string if given"
   end
   if device.implementation == "" then
-    device.implementation = "homie.lua " .. Device._VERSION
+    device.implementation = "homie5.lua " .. Device._VERSION
   else
-    device.implementation = device.implementation .. ", homie.lua " .. Device._VERSION
+    device.implementation = device.implementation .. ", homie5.lua " .. Device._VERSION
   end
 
   local ok, err = validate_nodes(device.nodes, device)

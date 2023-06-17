@@ -105,7 +105,19 @@ describe("Homie device", function()
     it("allows valid formats", function()
       local v = D._validate_format
       assert(v("float", "0.111:9.999"))
+      assert(v("float", ":9.999"))
+      assert(v("float", "0.111:"))
+      assert(v("float", "0.111:9.999:0.001"))
+      assert(v("float", ":9.999:0.001"))
+      assert(v("float", "0.111::0.001"))
+
       assert(v("integer", "-100:100"))
+      assert(v("integer", ":100"))
+      assert(v("integer", "-100:"))
+      assert(v("integer", "-100:100:5"))
+      assert(v("integer", ":100:5"))
+      assert(v("integer", "-100::5"))
+
       assert(v("enum", "a,b,c"))
       assert(v("color", "hsv"))
       assert(v("color", "rgb"))
@@ -114,8 +126,10 @@ describe("Homie device", function()
     it("fails invalid formats", function()
       local v = D._validate_format
       -- number formats
-      assert(not v("float", ":9.999"))
-      assert(not v("integer", "100:-100"))
+      assert(not v("float", "abc:abc"))
+      assert(not v("float", "1:10:1:5"))
+      assert(not v("integer", "abc:abc"))
+      assert(not v("float", "1:10:1:5"))
       -- color
       assert(not v("color", "not hsv nor rgb"))
       -- enum
@@ -585,15 +599,15 @@ describe("Homie device", function()
         assert(D._validate_device(dev))
       end)
 
-      it("defaults to homie.lua version", function()
+      it("defaults to homie5.lua version", function()
         dev.implementation = nil
         assert(D._validate_device(dev))
-        assert.equal("homie.lua " .. D._VERSION, dev.implementation)
+        assert.equal("homie5.lua " .. D._VERSION, dev.implementation)
       end)
 
-      it("appends homie.lua version", function()
+      it("appends homie5.lua version", function()
         assert(D._validate_device(dev))
-        assert.equal("my device, homie.lua " .. D._VERSION, dev.implementation)
+        assert.equal("my device, homie5.lua " .. D._VERSION, dev.implementation)
       end)
 
     end)
