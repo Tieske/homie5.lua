@@ -36,10 +36,9 @@ build = {
   type = "builtin",
 
   modules = {
-    ["homie.meta"] = "src/homie/meta.lua",
-    ["homie.utils"] = "src/homie/utils.lua",
-    ["homie.device"] = "src/homie/device.lua",
-    ["homie.controller"] = "src/homie/controller.lua",
+    ["homie5.meta"] = "src/homie5/meta.lua",
+    ["homie5.utils"] = "src/homie5/utils.lua",
+    ["homie5.device"] = "src/homie5/device.lua",
   },
 
   copy_directories = {
