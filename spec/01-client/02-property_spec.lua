@@ -134,8 +134,8 @@ describe("Homie device", function()
 
     it("string", function()
       prop.datatype = "string"
-      assert.equals("123", prop:unpack("123"))
-      assert.equals("hello", prop:unpack("hello"))
+      assert.is.True("123", prop:validate("123"))
+      assert.is.True("hello", prop:validate("hello"))
       assert(not prop:validate(123))
     end)
 
