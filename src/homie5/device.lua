@@ -260,49 +260,49 @@ do
   validators = {
     string = function(prop, value)
       if type(value) == "string" then
-        return true
+        return value
       end
-      return false, ("value is not of type string, got: '%s' (%s)"):format(tostring(value), type(value))
+      return nil, ("value is not of type string, got: '%s' (%s)"):format(tostring(value), type(value))
     end,
 
     integer = function(prop, value)
       if type(value) == "number" and
           math.floor(value) == value and
           check_min_max(prop, value) then
-        return true
+        return value
       end
-      return false, ("value is not an integer matching format '%s', got: '%s' (%s)"):
+      return nil, ("value is not an integer matching format '%s', got: '%s' (%s)"):
                     format(tostring(prop.format), tostring(value), type(value))
     end,
 
     float = function(prop, value)
       if type(value) == "number" and check_min_max(prop, value) then
-        return true
+        return value
       end
-      return false, ("value is not a float matching format '%s', got: '%s' (%s)"):
+      return nil, ("value is not a float matching format '%s', got: '%s' (%s)"):
                     format(tostring(prop.format), tostring(value), type(value))
     end,
 
     boolean = function(prop, value)
       -- using Lua falsy/truthy, no hard boolean checks
-      return true
+      return not not value  -- force returning a boolean
     end,
 
     enum = function(prop, value)
       if type(value) ~= "string" or value == "" or value:find(",") then
-        return false, ("value must be a non-empty string, and may not contain ',', got: '%s' (%s)"):
+        return nil, ("value must be a non-empty string, and may not contain ',', got: '%s' (%s)"):
                       format(tostring(value), type(value))
       end
       if (","..prop.format..","):find(","..value..",", 1, true) then
-        return true
+        return value
       end
-      return false, ("value '%s' not found in enum list: %s"):
+      return nil, ("value '%s' not found in enum list: %s"):
                     format(tostring(value), prop.format)
     end,
 
     color = function(prop, value)
       if type(value) ~= "table" then
-        return false, "value must be a table type, got: "..type(value)
+        return nil, "value must be a table type, got: "..type(value)
       end
       local v
       if prop.format == "hsv" then
@@ -312,43 +312,47 @@ do
       end
       if type(v[1]) ~= "number" or type(v[2]) ~= "number" or type(v[3]) ~= "number" or
          math.floor(v[1]) ~= v[1] or math.floor(v[2]) ~= v[2] or math.floor(v[3]) ~= v[3] then
-        return false, ("individual color values must be integer number type, got: %s, %s, %s"):
+        return nil, ("individual color values must be integer number type, got: %s, %s, %s"):
                       format(tostring(v[1]), tostring(v[2]), tostring(v[3]))
       end
       if prop.format == "hsv" then
         if v[1] < 0 or v[1] > 360 then
-          return false, "hsv value h must be from 0 to 360, got: "..tostring(v[1])
+          return nil, "hsv value h must be from 0 to 360, got: "..tostring(v[1])
         end
         if v[2] < 0 or v[2] > 100 or v[3] < 0 or v[3] > 100 then
-          return false, ("hsv values s and v must be from 0 to 100, got: %s, %s"):
+          return nil, ("hsv values s and v must be from 0 to 100, got: %s, %s"):
                         format(tostring(v[2]), tostring(v[3]))
         end
       else
         if v[1] < 0 or v[1] > 255 or v[2] < 0 or v[2] > 255 or v[3] < 0 or v[3] > 255 then
-          return false, ("rgb values must be from 0 to 255, got: %s, %s, %s"):
+          return nil, ("rgb values must be from 0 to 255, got: %s, %s, %s"):
                         format(tostring(v[1]), tostring(v[2]), tostring(v[3]))
         end
       end
-      return true
+      return value
     end,
 
     datetime = function(prop, value)
       -- TODO: implement
+      return value
     end,
 
     duration = function(prop, value)
       if type(value) == "number" and value >= 0 then
-        return true
+        return value
       end
-      return false, ("value is not a valid duration, got: %s (%s)"):
+      return nil, ("value is not a valid duration, got: %s (%s)"):
                     format(tostring(value), type(value))
     end,
   }
 
   --- Checks an (unpacked) value. Base implementation
   -- only checks format. Override for more validation checks.
+  -- This also implements minor updates of the values, e.g. when a value is numeric
+  -- and a `step` is provided in the format, the value will be rounded to the nearest step.
+  -- Or truthy/falsy input for a boolean type that will be converted to a boolean value.
   -- @param value the (unpacked) value to validate
-  -- @return `true` if ok, `nil+err` if not.
+  -- @return `value` if ok, `nil+err` if not. Since the value returned can be falsy, check the 2nd return value for errors!
   function Property:validate(value)
     return validators[self.datatype](self, value)
   end
@@ -477,8 +481,8 @@ function Property:update(value, force)
     value = not not value
   end
 
-  local ok, err = self:validate(value)
-  if not ok then
+  local value, err = self:validate(value)
+  if err ~= nil then
     return nil, err
   end
 
@@ -790,10 +794,11 @@ local function validate_property(prop)
   end
 
   if prop.default ~= nil then
-    local ok, err = prop:validate(prop.default)
-    if not ok then
+    local val, err = prop:validate(prop.default)
+    if err ~= nil then
       return nil, "bad default value: " .. err
     end
+    prop.default = val
   end
 
   for key in pairs(prop) do
@@ -1132,8 +1137,8 @@ function Device:verify_initial_values()
     for propid, prop in pairs(node.properties) do
       local v = prop:get()
       if v == nil then v = prop.default end
-      local ok, err = prop:validate(v)
-      if not ok then
+      local _, err = prop:validate(v)
+      if err ~= nil then
         log:error("[homie] no acceptable value available for property '%s': %s", prop.topic, err)
       else
         prop:set(v)
