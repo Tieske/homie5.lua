@@ -132,9 +132,13 @@ describe("Homie device", function()
       assert(not v("float", "abc:abc"))
       assert(not v("float", "1:10:1:5"))
       assert(not v("float", ""))
+      assert(not v("float", "::0"))
+      assert(not v("float", "::-1"))
       assert(not v("integer", "abc:abc"))
       assert(not v("integer", "1:10:1:5"))
       assert(not v("integer", ""))
+      assert(not v("integer", "::0"))
+      assert(not v("integer", "::-1"))
 
       -- color
       assert(not v("color", "not hsv nor rgb"))

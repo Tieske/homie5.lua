@@ -125,15 +125,15 @@ function Property:rset(pvalue)
     return nil, "bad value"
   end
 
-  local ok, err = self:validate(value)
-  if not ok then
+  local val, err = self:validate(value)
+  if err then
     log:warn("[homie] rset: remote device tried setting '%s' with a bad value: %s",
             self.topic, err)
     return nil, "bad value"
   end
 
   log:debug("[homie] rset: setting '%s = %s'", self.topic, pvalue)
-  self:set(value, true)
+  self:set(val, true)
   return true
 end
 
@@ -243,6 +243,20 @@ do
 end
 
 
+-- rounds the value to the nearest step (for integer and float formats)
+local function round_step(prop, value)
+  local min, max, step = pl_utils.splitv(prop.format or "", ":", 3)
+  min = tonumber(min or "")
+  max = tonumber(max or "")
+  step = tonumber(step or "")
+  local base = min or max or prop.value or 0
+  if not step then
+    return value
+  end
+  return math.floor((value - base) / step + 0.5) * step + base
+end
+
+
 do
   local validators
 
@@ -251,9 +265,9 @@ do
       return true
     end
 
-    local min, max = prop.format:match("^([^:]+):([^:]+)$")
-    min = tonumber(min)
-    max = tonumber(max)
+    local min, max = pl_utils.splitv(prop.format or "", ":", 2)
+    min = tonumber(min) or -math.huge
+    max = tonumber(max) or math.huge
     return value >= min and value <= max
   end
 
@@ -266,18 +280,24 @@ do
     end,
 
     integer = function(prop, value)
-      if type(value) == "number" and
-          math.floor(value) == value and
-          check_min_max(prop, value) then
-        return value
+      if type(value) == "number" then
+        if math.floor(value) == value then
+          local rounded_value = round_step(prop, value)
+          if check_min_max(prop, rounded_value) then
+            return rounded_value
+          end
+        end
       end
       return nil, ("value is not an integer matching format '%s', got: '%s' (%s)"):
                     format(tostring(prop.format), tostring(value), type(value))
     end,
 
     float = function(prop, value)
-      if type(value) == "number" and check_min_max(prop, value) then
-        return value
+      if type(value) == "number" then
+        local ret_value = round_step(prop, value)
+        if check_min_max(prop, ret_value) then
+          return ret_value
+        end
       end
       return nil, ("value is not a float matching format '%s', got: '%s' (%s)"):
                     format(tostring(prop.format), tostring(value), type(value))
@@ -482,7 +502,7 @@ function Property:update(value, force)
   end
 
   local value, err = self:validate(value)
-  if err ~= nil then
+  if err then
     return nil, err
   end
 
@@ -711,6 +731,9 @@ local function validate_format(datatype, format)
       if not step then
         return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
       end
+      if step <= 0 then
+        return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+      end
     end
     if min and max and min > max then
       return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
@@ -795,7 +818,7 @@ local function validate_property(prop)
 
   if prop.default ~= nil then
     local val, err = prop:validate(prop.default)
-    if err ~= nil then
+    if err then
       return nil, "bad default value: " .. err
     end
     prop.default = val
@@ -1137,11 +1160,11 @@ function Device:verify_initial_values()
     for propid, prop in pairs(node.properties) do
       local v = prop:get()
       if v == nil then v = prop.default end
-      local _, err = prop:validate(v)
-      if err ~= nil then
+      local val, err = prop:validate(v)
+      if err then
         log:error("[homie] no acceptable value available for property '%s': %s", prop.topic, err)
       else
-        prop:set(v)
+        prop:set(val)
       end
     end
   end

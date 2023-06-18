@@ -152,6 +152,34 @@ describe("Homie device", function()
 
       prop.format = nil -- format is optional
       assert.equals(12, prop:validate(12))
+
+      -- step base priority: min, max, current-value
+      prop.format = "-2:11:3" -- base = -2, allowed values: -2, 1, 4, 7, 10
+      assert.equals(-2, prop:validate(-2))
+      assert.equals(-2, prop:validate(-1))
+      assert.equals(1, prop:validate(-0))
+      assert.equals(1, prop:validate(1))
+      assert.equals(1, prop:validate(2))
+      assert.equals(4, prop:validate(3))
+      prop.format = ":11:3" -- base = 11, allowed values: ..., -1, 2, 5, 8, 11
+      assert.equals(-1, prop:validate(-2))
+      assert.equals(-1, prop:validate(-1))
+      assert.equals(-1, prop:validate(0))
+      assert.equals(2, prop:validate(1))
+      assert.equals(2, prop:validate(2))
+      assert.equals(2, prop:validate(3))
+      prop.value = 0
+      prop.format = "::3" -- base = 0, allowed values: ..., -3, 0, 3, 6, 9, ...
+      assert.equals(-3, prop:validate(-2))
+      assert.equals(0, prop:validate(-1))
+      assert.equals(0, prop:validate(0))
+      assert.equals(0, prop:validate(1))
+      assert.equals(3, prop:validate(2))
+      assert.equals(3, prop:validate(3))
+
+      -- unreachable maximum
+      prop.format = "0:11:3" -- base = 0, allowed values: 0, 3, 6, 9
+      assert.is.Nil(prop:validate(11)) -- 11 rounds to 12, which is beyond the maximum
     end)
 
     it("float", function()
@@ -167,6 +195,35 @@ describe("Homie device", function()
 
       prop.format = nil -- format is optional
       assert.equals(12, prop:validate(12))
+
+      -- step base priority: min, max, current-value
+      prop.format = "0:1:0.3" -- base = 0, allowed values: 0, 0.3, 0.6, 0.9
+      assert.is.near(0, prop:validate(0), 0.00001)
+      assert.is.near(0, prop:validate(0.1), 0.00001)
+      assert.is.near(0.3, prop:validate(0.2), 0.00001)
+      assert.is.near(0.3, prop:validate(0.3), 0.00001)
+      assert.is.near(0.3, prop:validate(0.4), 0.00001)
+      assert.is.near(0.6, prop:validate(0.5), 0.00001)
+      prop.format = ":1:0.3" -- base = 1, allowed values: ..., 0.1, 0.4, 0.7, 1
+      assert.is.near(0.1, prop:validate(0), 0.00001)
+      assert.is.near(0.1, prop:validate(0.1), 0.00001)
+      assert.is.near(0.1, prop:validate(0.2), 0.00001)
+      assert.is.near(0.4, prop:validate(0.3), 0.00001)
+      assert.is.near(0.4, prop:validate(0.4), 0.00001)
+      assert.is.near(0.4, prop:validate(0.5), 0.00001)
+      prop.value = 0.2
+      prop.format = "::0.3" -- base = 0.2, allowed values: ..., -0.1, 0.2, 0.5, 0.8, 0.11, ...
+      assert.is.near(-0.1, prop:validate(0), 0.00001)
+      assert.is.near(0.2, prop:validate(0.1), 0.00001)
+      assert.is.near(0.2, prop:validate(0.2), 0.00001)
+      assert.is.near(0.2, prop:validate(0.3), 0.00001)
+      assert.is.near(0.5, prop:validate(0.4), 0.00001)
+      assert.is.near(0.5, prop:validate(0.5), 0.00001)
+      assert.is.near(0.5, prop:validate(0.6), 0.00001)
+
+      -- unreachable maximum
+      prop.format = "0:1.1:0.3" -- base = 0, allowed values: 0, 0.3, 0.6, 0.9
+      assert.is.Nil(prop:validate(1.1)) -- 1.1 rounds to 1.2, which is beyond the maximum
     end)
 
     it("boolean", function()
@@ -245,10 +302,12 @@ describe("Homie device", function()
       prop.id = "propid"
       prop.settable = true
       prop.datatype = "integer"
+      prop.format = "0:100:2"
       prop.node = { id = "nodeid" }
       prop.device = {
         states = { init = "init" },
-        base_topic = "homie/devid/"
+        base_topic = "homie/devid/",
+        send_property_update = function() return true end
       }
     end)
 
@@ -260,15 +319,19 @@ describe("Homie device", function()
     end)
 
     it("unpacks received values", function()
-      local s = stub(prop, "set")
-      prop:rset("123")
-      assert.stub(s).was.called.with(prop, 123, true)
+      prop:rset("50")
+      assert.equal(50, prop.value)
     end)
 
     it("validates received values", function()
       local ok, err = prop:rset("abc")
       assert.equal("bad value", err)
       assert.is.Nil(ok)
+    end)
+
+    it("rounds received values", function()
+      prop:rset("11")
+      assert.equal(12, prop.value)
     end)
 
   end)
@@ -356,7 +419,7 @@ describe("Homie device", function()
     end)
 
     it("float", function()
-      prop.datatype = "integer"
+      prop.datatype = "float"
       assert.is.True(prop:values_same(10.1, 10.1))
       assert.is.False(prop:values_same(10.1, 11.1))
     end)
@@ -479,14 +542,24 @@ describe("Homie device", function()
       prop.id = "propid"
       prop.settable = true
       prop.datatype = "integer"
+      prop.format = "0:100:5"
       prop.node = { id = "nodeid" }
-      prop.device = { base_topic = "homie/devid/" }
+      prop.device = {
+        base_topic = "homie/devid/",
+        send_property_update = function() return true end,
+      }
     end)
 
     it("calls 'update'", function()
-      local s = stub(prop, "update")
-      prop:set(123)
-      assert.stub(s).was.called.with(prop, 123)
+      prop.value = 0
+      prop:set(50)
+      assert.equals(50, prop.value)
+    end)
+
+    it("calls rounds number values", function()
+      prop.value = 0
+      prop:set(53)
+      assert.equals(55, prop.value)
     end)
 
   end)
