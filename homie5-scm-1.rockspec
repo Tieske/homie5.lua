@@ -30,6 +30,7 @@ dependencies = {
   --"luamqtt",  -- do: "luarocks install Tieske/luamqtt --dev" for now
   "lualogging >= 1.6",
   "penlight ~> 1",
+  "lua-resty-ljsonschema ~> 1",
 }
 
 build = {

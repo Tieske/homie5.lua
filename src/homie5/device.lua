@@ -8,12 +8,22 @@
 local mqtt = require "mqtt"
 local stringx = require "pl.stringx"
 local pl_utils = require "pl.utils"
+local pl_tablex = require "pl.tablex"
 local log = require("logging").defaultLogger()
 local Semaphore = require "copas.semaphore"
 local copas = require "copas"
 local utils = require "homie5.utils"
+local cjson = require "cjson.safe"
+local jsonschema = require "resty.ljsonschema"
 
 local EMPTY_STRING_PLACEHOLDER = string.char(0) -- used to replace empty strings in MQTT values
+local DEFAULT_JSON_SCHEMA = {
+  anyOf = {
+    { type = "array" },
+    { type = "object" },
+  }
+}
+local DEFAULT_JSON_SCHEMA_STRING = cjson.encode(DEFAULT_JSON_SCHEMA)
 
 -- Node implementation ---------------------------------------------------------
 local Node = {}
@@ -229,7 +239,16 @@ do
       end
       return false, ("bad duration value: '%s'"):format(value)
     end,
+
+    json = function(prop, value)
+      local v, err = cjson.decode(value)
+      if not v then
+        return nil, ("bad json value '%s', decoder: %s"):format(value:sub(1,100), err)
+      end
+      return v
+    end,
   }
+
   --- Deserializes a value received over MQTT.
   -- Override in case of (de)serialization needs.
   --
@@ -364,6 +383,22 @@ do
       return nil, ("value is not a valid duration, got: %s (%s)"):
                     format(tostring(value), type(value))
     end,
+
+    json = function(prop, value)
+      local schema = prop.format or DEFAULT_JSON_SCHEMA_STRING
+      if (not prop.schema_validator) or (schema ~= prop.schema_validator_source) then
+        -- we don't have a schema, or it changed, so compile and cache it
+        prop.schema_validator_source = schema
+        prop.schema_validator = jsonschema.generate_validator(cjson.decode(schema))
+      end
+
+      local ok, err = prop.schema_validator(value)
+      if not ok then
+        return nil, ("bad value: %s"):format(err)
+      end
+
+      return value
+    end,
   }
 
   --- Checks an (unpacked) value. Base implementation
@@ -448,6 +483,10 @@ do
       end
       return "PT"..ret
     end,
+
+    json = function(prop, value)
+      return cjson.encode(value)
+    end,
   }
   --- Serializes a value to send over MQTT.
   -- Override in case of (de)serialization needs. Since this method is only called after
@@ -484,6 +523,10 @@ function Property:values_same(value1, value2)
     else
       return value1.r == value2.r and value1.g == value2.g and value1.b == value2.b
     end
+  end
+
+  if self.datatype == "json" then
+    return pl_tablex.deepcompare(value1, value2)
   end
 
   return value1 == value2
@@ -611,6 +654,7 @@ Device.datatypes = {
   color = "color",
   datetime = "datetime",
   duration = "duration",
+  json = "json",
 }
 
 -- validate homie topic segment
@@ -762,6 +806,25 @@ local function validate_format(datatype, format)
   elseif datatype == "color" then
     if format ~= "hsv" and format ~= "rgb" then
       return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+    end
+
+  elseif datatype == "json" then
+    local schema, err = cjson.decode(format)
+    if not schema then
+      if #format > 100 then
+        format = format:sub(1,100).."..."
+      end
+      return nil, ("format '%s' is not valid for datatype '%s', bad json: %s"):format(format, datatype, err)
+    end
+    local ok, validator, err = pcall(jsonschema.generate_validator, schema)
+    if not ok then
+      validator, err = nil, validator -- hard eror, shift args to soft error positions
+    end
+    if not validator then
+      if #format > 100 then
+        format = format:sub(1,100).."..."
+      end
+      return nil, ("format '%s' is not valid for datatype '%s', bad json-schema: %s"):format(format, datatype, err)
     end
 
   else

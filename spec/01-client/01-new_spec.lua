@@ -124,6 +124,8 @@ describe("Homie device", function()
       assert(v("color", "rgb"))
 
       assert(v("boolean", "off,on"))
+
+      assert(v("json", '{"type": "object"}'))
     end)
 
     it("fails invalid formats", function()
@@ -156,6 +158,10 @@ describe("Homie device", function()
 
       -- datatype without format
       assert(not v("datetime", "value"))
+
+      -- json
+      assert(not v("json", "not valid json"))
+      assert(not v("json", '{"type": "not valid json type"}'))
     end)
 
   end)
@@ -276,21 +282,18 @@ describe("Homie device", function()
     describe("$format attribute", function()
 
       it("is required for enum", function()
-        prop.format = nil
         prop.datatype = "enum"
         prop.format = nil
         assert(not D._validate_property(prop, node, dev))
       end)
 
       it("is required for color", function()
-        prop.format = nil
         prop.datatype = "color"
         prop.format = nil
         assert(not D._validate_property(prop, node, dev))
       end)
 
       it("is not required for others", function()
-        prop.format = nil
         prop.datatype = "integer"
         prop.format = nil
         assert(D._validate_property(prop, node, dev))
@@ -363,6 +366,29 @@ describe("Homie device", function()
     it("accepts valid properties", function()
       assert(D._validate_properties(props, node, dev))
     end)
+
+    do
+      local data = {
+        integer = "0:123",
+        float = "0:123",
+        boolean = "close,open",
+        enum = "a,b,c,d",
+        color = "hsv",
+        string = "",
+        datetime = "",
+        duration = "",
+        json = '{"type": "object"}',
+      }
+
+      for typename, format in pairs(data) do
+        it("accepts datatype "..typename, function()
+          props.propid.datatype = typename
+          props.propid.format = format ~= "" and format or nil
+          assert(D._validate_properties(props, node, dev))
+        end)
+      end
+    end
+
 
     it("property must be a table", function()
       props.propid = "hello"

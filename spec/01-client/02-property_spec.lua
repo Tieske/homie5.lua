@@ -126,6 +126,13 @@ describe("Homie device", function()
       assert(not prop:unpack("PT1S1M1H"))
     end)
 
+    it("json", function()
+      prop.datatype = "json"
+      assert.same({}, prop:unpack("{}"))
+      assert.same({ name = "tieske" }, prop:unpack('{ "name": "tieske"}'))
+      assert(not prop:unpack("this is not valid json"))
+    end)
+
   end)
 
 
@@ -292,6 +299,25 @@ describe("Homie device", function()
       assert.is.Nil(prop:validate("20"))
     end)
 
+    it("json", function()
+      prop.datatype = "json"
+      -- default allows only object or array
+      prop.format = nil
+      assert.same({ name = "tieske" }, prop:validate(assert(prop:unpack('{ "name": "tieske" }'))))
+      assert.same({ "tieske" }, prop:validate(assert(prop:unpack('[ "tieske" ]'))))
+      assert.is.Nil(prop:validate(assert(prop:unpack('123')))) -- a numeric literal (is valid json)
+
+      prop.format = [[{
+        "type": "object",
+        "properties": {
+          "foo": { "type": "string" },
+          "bar": { "type": "number" }
+        }
+      }]]
+      assert.same({ foo = "hello", bar = 123 }, prop:validate({ foo = "hello", bar = 123 }))
+      assert.is.Nil(prop:validate({ bar = "hello", foo = 123 }))
+    end)
+
   end)
 
 
@@ -400,6 +426,12 @@ describe("Homie device", function()
       assert.equal("PT0.001S", prop:pack(0.001))
     end)
 
+    it("json", function()
+      prop.datatype = "json"
+      assert.equal('["one","two"]', prop:pack({"one", "two"}))
+      assert.equal('{"one":"two"}', prop:pack({one = "two"}))
+    end)
+
   end)
 
 
@@ -469,6 +501,12 @@ describe("Homie device", function()
       prop.datatype = "duration"
       assert.is.True(prop:values_same(10.1, 10.1))
       assert.is.False(prop:values_same(10.1, 11.1))
+    end)
+
+    it("json", function()
+      prop.datatype = "json"
+      assert.is.True(prop:values_same({10, 11}, {10, 11}))
+      assert.is.False(prop:values_same({10, 11}), {11, 12})
     end)
 
   end)
