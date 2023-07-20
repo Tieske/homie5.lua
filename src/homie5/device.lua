@@ -25,6 +25,27 @@ local DEFAULT_JSON_SCHEMA = {
 }
 local DEFAULT_JSON_SCHEMA_STRING = cjson.encode(DEFAULT_JSON_SCHEMA)
 
+local DEFAULT_FORMATS = {
+  integer = ":",
+  float = ":",
+  boolean = "false,true",
+  json = DEFAULT_JSON_SCHEMA_STRING,
+}
+
+-- mark a table as an array for jsonification, or if nil, passes it through
+local function json_array(t)
+  if t == nil then
+    return
+  end
+
+  if type(t) ~= "table" then
+    error(("Expected a table got: %s"):format(type(t)), 2)
+  end
+
+  return setmetatable(t, cjson.array_mt)
+end
+
+
 -- Node implementation ---------------------------------------------------------
 local Node = {}
 Node.__index = Node
@@ -1323,6 +1344,110 @@ function Device:verify_initial_values()
   end
 end
 
+--- returns a newly build JSON description of the property.
+-- @return table; json description
+function Property:get_description()
+  local description =  {
+    name = self.name,
+    datatype = self.datatype,
+    format = self.format or DEFAULT_FORMATS[self.datatype] or nil,
+    settable = not not self.settable,
+    retained = not not self.retained,
+    unit = self.unit,
+  }
+
+  return description
+end
+
+--- returns a newly build JSON description of the node.
+-- @return table; json description
+function Node:get_description()
+  local description = {
+    name = self.name,
+    properties = {},
+  }
+
+  for property_id, property in pairs(self.properties) do
+    description.properties[property_id] = property:get_description()
+  end
+
+  return description
+end
+
+--- returns the JSON structure describing the document.
+-- @return table; json description
+function Device:get_description()
+  local description = {
+    homie = self.homie,
+    version = nil, -- TODO: implement managing description versions, restore from MQTT bus?
+    name = self.name,
+    nodes = {},
+    children = json_array({}),    -- TODO: implement
+    root = nil,                   -- TODO: implement
+    parent = nil,                 -- TODO: implement
+    extensions = json_array({}),
+  }
+
+  for nodeid, node in pairs(self.nodes) do
+    description.nodes[nodeid] = node:get_description()
+  end
+
+  return description
+end
+
+--- adds required subscriptions to the input list.
+-- @tparam table input_list the table to add the subscriptions to. Handler functions indexed by topic.
+-- @return nothing
+function Property:get_subscriptions(input_list)
+  if self.settable then
+    local topic = self.topic .. "/set"
+    local handler = function(packet)
+      -- acknowledge packet and invoke property-setter
+      self.device.mqtt:acknowledge(packet)
+      self:rset(packet.payload)
+    end
+
+    input_list[topic] = handler
+  end
+end
+
+--- gets required subscriptions.
+-- @return table containing subscriptions. Handler functions indexed by topic.
+function Node:get_subscriptions()
+  local input_list = {}
+
+  for propid, prop in pairs(self.properties) do
+    prop:get_subscriptions(input_list)
+  end
+
+  return input_list
+end
+
+--- returns a list of topics to subscribe to.
+-- The topics list is a table, with the topic as key, and the handler function as the value
+-- @tparam[opt={}] table current_subscriptions current subscriptions to update, used to create the 'drop' result
+-- @return subscriptions, drop; both tables, topics to subscribe to, and subscriptions to drop. Both are tables
+-- with the topic as key, and the handler function as the value
+function Device:get_subscriptions(current_subscriptions)
+  current_subscriptions = current_subscriptions or {}
+  local subscriptions = {}
+  local drop = {}
+
+  for nodeid, node in pairs(self.nodes) do
+    local node_subscriptions = node:get_subcriptions()
+    for topic, handler in pairs(node_subscriptions) do
+      subscriptions[topic] = handler
+    end
+  end
+
+  for topic, handler in pairs(current_subscriptions) do
+    if not subscriptions[topic] then
+      drop[topic] = handler
+    end
+  end
+
+  return subscriptions, drop
+end
 
 -- Push every topic we have including device description etc, to the broker
 function Device:publish_device()
