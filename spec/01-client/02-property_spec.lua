@@ -86,27 +86,43 @@ describe("Homie device", function()
     it("color; hsv", function()
       prop.datatype = "color"
       prop.format = "hsv"
-      assert.same({ h=0, s=0, v=0 }, prop:unpack("0,0,0"))
-      assert.same({ h=1, s=2, v=3 }, prop:unpack("1,2,3"))
-      assert.same({ h=255, s=255, v=255 }, prop:unpack("255,255,255"))
-      assert(not prop:unpack("0,0"))
-      assert(not prop:unpack("0,0,"))
+      assert.same({ h=0, s=0, v=0 }, prop:unpack("hsv,0,0,0"))
+      assert.same({ h=1, s=2, v=3 }, prop:unpack("hsv,1,2,3"))
+      assert.same({ h=255, s=255, v=255 }, prop:unpack("hsv,255,255,255"))
+      assert.same({ h=0.1, s=0.2, v=0.3 }, prop:unpack("hsv,0.1,0.2,0.3"))
+      assert(not prop:unpack("hsv,0,0"))
+      assert(not prop:unpack("hsv,0,0,"))
       assert(not prop:unpack(",0,0"))
-      assert(not prop:unpack("a,b,c"))
-      assert(not prop:unpack("0.1,0.2,0.3"))
+      assert(not prop:unpack("hsv,a,b,c"))
+      assert(not prop:unpack("hsv,a,b,c"))
+      assert(not prop:unpack("hsv,0,...,0")) -- "..." matches allowed decimal dots
     end)
 
     it("color; rgb", function()
       prop.datatype = "color"
       prop.format = "rgb"
-      assert.same({ r=0, g=0, b=0 }, prop:unpack("0,0,0"))
-      assert.same({ r=1, g=2, b=3 }, prop:unpack("1,2,3"))
-      assert.same({ r=255, g=255, b=255 }, prop:unpack("255,255,255"))
-      assert(not prop:unpack("0,0"))
-      assert(not prop:unpack("0,0,"))
+      assert.same({ r=0, g=0, b=0 }, prop:unpack("rgb,0,0,0"))
+      assert.same({ r=1, g=2, b=3 }, prop:unpack("rgb,1,2,3"))
+      assert.same({ r=255, g=255, b=255 }, prop:unpack("rgb,255,255,255"))
+      assert.same({ r=0.1, g=0.2, b=0.3 }, prop:unpack("rgb,0.1,0.2,0.3"))
+      assert(not prop:unpack("rgb,0,0"))
+      assert(not prop:unpack("rgb,0,0,"))
       assert(not prop:unpack(",0,0"))
-      assert(not prop:unpack("a,b,c"))
-      assert(not prop:unpack("0.1,0.2,0.3"))
+      assert(not prop:unpack("rgb,a,b,c"))
+      assert(not prop:unpack("rgb,0,...,0")) -- "..." matches allowed decimal dots
+    end)
+-- should these be a single unpack function without any validatioon???? per type
+    it("color; xyz", function()
+      prop.datatype = "color"
+      prop.format = "xyz"
+      assert.same({ x=0, y=0 }, prop:unpack("xyz,0,0"))
+      assert.same({ x=1, y=1 }, prop:unpack("xyz,1,1"))
+      assert.same({ x=0.5, y=0.3 }, prop:unpack("xyz,0.5,0.3"))
+      assert(not prop:unpack("xyz,0"))
+      assert(not prop:unpack("xyz,0,"))
+      assert(not prop:unpack(",0"))
+      assert(not prop:unpack("b,c"))
+      assert(not prop:unpack("xyz,...,0")) -- "..." matches allowed decimal dots
     end)
 
     pending("datetime", function()
@@ -288,6 +304,36 @@ describe("Homie device", function()
       assert.is.Nil(prop:validate({r=10, g=20, b=true}))
     end)
 
+    it("color: xyz", function()
+      prop.datatype = "color"
+      prop.format = "xyz"
+      assert.are.same({x=0, y=1, z=0}, prop:validate({x=0, y=1}))
+      assert.are.same({x=1, y=0, z=0}, prop:validate({x=1, y=0}))
+      assert.are.same({x=0.5, y=0.5, z=0 }, prop:validate({x=0.5, y=0.5}))
+      assert.are.same({x=0.5, y=0.5, z=0 }, prop:validate({x=0.5, z=0}))
+      assert.are.same({x=0.5, y=0.5, z=0 }, prop:validate({z=0, y=0.5}))
+      assert.is.Nil(prop:validate({x=-1, y=0.1}))
+      assert.is.Nil(prop:validate({x=2, y=0.1}))
+      assert.is.Nil(prop:validate({y=-1, x=0.1}))
+      assert.is.Nil(prop:validate({y=2, x=0.1}))
+      assert.is.Nil(prop:validate({x=true, y=0.1}))
+      assert.is.Nil(prop:validate({y=true, x=0.1}))
+    end)
+
+    it("color: rgb,hsv,xyz", function()
+      prop.datatype = "color"
+      prop.format = "rgb,hsv,xyz"
+      assert.are.same({r=10, g=20, b=30}, prop:validate({r=10, g=20, b=30}))
+      assert.are.same({r=0, g=0, b=0}, prop:validate({r=0, g=0, b=0}))
+      assert.are.same({r=255, g=255, b=255}, prop:validate({r=255, g=255, b=255}))
+      assert.are.same({h=10, s=20, v=30}, prop:validate({h=10, s=20, v=30}))
+      assert.are.same({h=0, s=0, v=0}, prop:validate({h=0, s=0, v=0}))
+      assert.are.same({h=360, s=100, v=100}, prop:validate({h=360, s=100, v=100}))
+      assert.are.same({x=0, y=1, z=0}, prop:validate({x=0, y=1}))
+      assert.are.same({x=1, y=0, z=0}, prop:validate({x=1, y=0}))
+      assert.are.same({x=0.5, y=0.5, z=0}, prop:validate({x=0.5, y=0.5}))
+    end)
+
     pending("datetime", function()
       -- TODO: implement
     end)
@@ -403,13 +449,32 @@ describe("Homie device", function()
     it("color; hsv", function()
       prop.datatype = "color"
       prop.format = "hsv"
-      assert.equal("10,20,30", prop:pack({h=10, s=20, v=30}))
+      assert.equal("hsv,10,20,30", prop:pack({h=10, s=20, v=30}))
+      assert.equal("hsv,0.1,0.2,0.3", prop:pack({h=0.1, s=0.20, v=0.3}))
     end)
 
     it("color; rgb", function()
       prop.datatype = "color"
       prop.format = "rgb"
-      assert.equal("10,20,30", prop:pack({r=10, g=20, b=30}))
+      assert.equal("rgb,10,20,30", prop:pack({r=10, g=20, b=30}))
+      assert.equal("rgb,0.1,0.2,0.3", prop:pack({r=0.1, g=0.20, b=0.3}))
+    end)
+
+    it("color; xyz", function()
+      prop.datatype = "color"
+      prop.format = "xyz"
+      assert.equal("xyz,0.1,0.2", prop:pack({x=0.1, y=0.2}))
+    end)
+
+    it("color; rgb,hsv,xyz bases format on precedence", function()
+      prop.datatype = "color"
+      prop.format = "rgb,hsv,xyz"
+      local data = {r=10, g=20, b=30, h=40, s=50, v=60, x=0.1, y=0.2}
+      assert.equal("rgb,10,20,30", prop:pack(data))
+      data.r = nil
+      assert.equal("hsv,40,50,60", prop:pack(data))
+      data.h = nil
+      assert.equal("xyz,0.1,0.2", prop:pack(data))
     end)
 
     pending("datetime", function()

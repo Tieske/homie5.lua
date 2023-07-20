@@ -122,6 +122,8 @@ describe("Homie device", function()
 
       assert(v("color", "hsv"))
       assert(v("color", "rgb"))
+      assert(v("color", "xyz"))
+      assert(v("color", "hsv,rgb,xyz"))
 
       assert(v("boolean", "off,on"))
 
@@ -144,6 +146,7 @@ describe("Homie device", function()
 
       -- color
       assert(not v("color", "not hsv nor rgb"))
+      assert(not v("color", "rgb,xyz,123"))
 
       -- enum
       assert(not v("enum", ",hsv"))

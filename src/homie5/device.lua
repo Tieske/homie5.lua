@@ -190,15 +190,31 @@ do
     end,
 
     color = function(prop, value)
-      local v = { value:match("^(%d+),(%d+),(%d+)$") }
-      if not v[1] then
-        return nil, ("bad color value: '%s'"):format(value)
+      local v = { value:match("^rgb,([%d%.e]+),([%d%.e]+),([%d%.e]+)$") }
+      if v[1] then
+        v = { r = tonumber(v[1]), g = tonumber(v[2]), b = tonumber(v[3]) }
+        if v.r and v.g and v.b then
+          return v
+        end
       end
-      if prop.format == "hsv" then
-        return { h = tonumber(v[1]), s = tonumber(v[2]), v = tonumber(v[3]) }
-      else
-        return { r = tonumber(v[1]), g = tonumber(v[2]), b = tonumber(v[3]) }
+
+      v = { value:match("^hsv,([%d%.e]+),([%d%.e]+),([%d%.e]+)$") }
+      if v[1] then
+        v = { h = tonumber(v[1]), s = tonumber(v[2]), v = tonumber(v[3]) }
+        if v.h and v.s and v.v then
+          return v
+        end
       end
+
+      v = { value:match("^xyz,([%d%.e]+),([%d%.e]+)$") }
+      if v[1] then
+        v = { x = tonumber(v[1]), y = tonumber(v[2]) }
+        if v.x and v.y then
+          return v
+        end
+      end
+
+      return nil, ("bad color value: '%s'"):format(value)
     end,
 
     datetime = function(prop, value)
@@ -343,32 +359,71 @@ do
       if type(value) ~= "table" then
         return nil, "value must be a table type, got: "..type(value)
       end
+
       local v
-      if prop.format == "hsv" then
-        v = { value.h, value.s, value.v }
-      else
-        v = { value.r, value.g, value.b }
-      end
-      if type(v[1]) ~= "number" or type(v[2]) ~= "number" or type(v[3]) ~= "number" or
-         math.floor(v[1]) ~= v[1] or math.floor(v[2]) ~= v[2] or math.floor(v[3]) ~= v[3] then
-        return nil, ("individual color values must be integer number type, got: %s, %s, %s"):
-                      format(tostring(v[1]), tostring(v[2]), tostring(v[3]))
-      end
-      if prop.format == "hsv" then
-        if v[1] < 0 or v[1] > 360 then
-          return nil, "hsv value h must be from 0 to 360, got: "..tostring(v[1])
+      local formats = pl_utils.split(prop.format, ",")
+      for i, format in ipairs(formats) do
+        if format == "rgb" and value.r and value.g and value.b then
+          v = { r = value.r, g = value.g, b = value.b }
         end
-        if v[2] < 0 or v[2] > 100 or v[3] < 0 or v[3] > 100 then
+        if format == "hsv" and value.h and value.s and value.v then
+          v = { h = value.h, s = value.s, v = value.v }
+        end
+        if format == "xyz" then
+          local cnt = ((value.x and 1 or 0) + (value.y and 1 or 0) + (value.z and 1 or 0))
+          if cnt >= 2 then
+            -- we have at least 2 of the three values, calculate the third
+            if value.x and value.y then -- if z was given, we overwrite it...
+              v = { x = value.x, y = value.y}
+              v.z = 1 - (tonumber(v.x) or 0) - (tonumber(v.y) or 0)
+            elseif value.x and value.z then
+              v = { x = value.x, z = value.z}
+              v.y = 1 - (tonumber(v.x) or 0) - (tonumber(v.z) or 0)
+            else
+              v = { y = value.y, z = value.z}
+              v.x = 1 - (tonumber(v.y) or 0) - (tonumber(v.z) or 0)
+            end
+          end
+        end
+        if v then
+          for key, val in pairs(v) do
+            if type(val) ~= "number" then
+              v = nil
+              break
+            end
+          end
+          if v then
+            break
+          end
+        end
+      end
+
+      if v and v.h then -- hsv value
+        if v.h < 0 or v.h > 360 then
+          return nil, "hsv value h must be from 0 to 360, got: "..tostring(v.h)
+        end
+        if v.s < 0 or v.s > 100 or v.v < 0 or v.v > 100 then
           return nil, ("hsv values s and v must be from 0 to 100, got: %s, %s"):
-                        format(tostring(v[2]), tostring(v[3]))
+                        format(tostring(v.s), tostring(v.v))
         end
-      else
-        if v[1] < 0 or v[1] > 255 or v[2] < 0 or v[2] > 255 or v[3] < 0 or v[3] > 255 then
+
+      elseif v and v.r then -- rgb value
+        if v.r < 0 or v.r > 255 or v.g < 0 or v.g > 255 or v.b < 0 or v.b > 255 then
           return nil, ("rgb values must be from 0 to 255, got: %s, %s, %s"):
-                        format(tostring(v[1]), tostring(v[2]), tostring(v[3]))
+                        format(tostring(v.r), tostring(v.g), tostring(v.b))
         end
+
+      elseif v and v.x then -- xyz value
+        if v.x < 0 or v.x > 1 or v.y < 0 or v.y > 1 then
+          return nil, ("xyz values must be from 0 to 1, got: %s, %s, %s"):
+                        format(tostring(v.x), tostring(v.y), tostring(v.z))
+        end
+
+      else
+        return nil, "bad color value, no valid format found"
       end
-      return value
+
+      return v
     end,
 
     datetime = function(prop, value)
@@ -406,6 +461,8 @@ do
   -- This also implements minor updates of the values, e.g. when a value is numeric
   -- and a `step` is provided in the format, the value will be rounded to the nearest step.
   -- Or truthy/falsy input for a boolean type that will be converted to a boolean value.
+  -- for color values it will return only a single type, based on precedence set. If the
+  -- value is an XYZ value, only 2 need to be present, the third will be calculated and added.
   -- @param value the (unpacked) value to validate
   -- @return `value` if ok, `nil+err` if not. Since the value returned can be falsy, check the 2nd return value for errors!
   function Property:validate(value)
@@ -452,9 +509,19 @@ do
     end,
 
     color = function(prop, value)
-      return prop.format == "hsv" and
-        ("%d,%d,%d"):format(value.h, value.s, value.v) or
-        ("%d,%d,%d"):format(value.r, value.g, value.b)
+      local formats = pl_utils.split(prop.format, ",")
+      for _, format in ipairs(formats) do
+        if format == "hsv" and value.h then
+          return ("hsv,%s,%s,%s"):format(tostring(value.h), tostring(value.s), tostring(value.v))
+        end
+        if format == "rgb" and value.r then
+          return ("rgb,%s,%s,%s"):format(tostring(value.r), tostring(value.g), tostring(value.b))
+        end
+        if format == "xyz" and value.x then
+          return ("xyz,%s,%s"):format(tostring(value.x), tostring(value.y))
+        end
+      end
+      error("unreachable")
     end,
 
     datetime = function(prop, value)
@@ -517,15 +584,7 @@ function Property:values_same(value1, value2)
     return false
   end
 
-  if self.datatype == "color" then
-    if self.format == "hsv" then
-      return value1.h == value2.h and value1.s == value2.s and value1.v == value2.v
-    else
-      return value1.r == value2.r and value1.g == value2.g and value1.b == value2.b
-    end
-  end
-
-  if self.datatype == "json" then
+  if self.datatype == "json" or self.datatype == "color" then
     return pl_tablex.deepcompare(value1, value2)
   end
 
@@ -804,8 +863,11 @@ local function validate_format(datatype, format)
     end
 
   elseif datatype == "color" then
-    if format ~= "hsv" and format ~= "rgb" then
-      return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+    local list = stringx.split(format, ",")
+    for i, format in ipairs(list) do
+      if format ~= "hsv" and format ~= "rgb" and format ~= "xyz" then
+        return nil, ("format '%s' is not valid for datatype '%s'"):format(format, datatype)
+      end
     end
 
   elseif datatype == "json" then
