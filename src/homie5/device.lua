@@ -599,10 +599,6 @@ end
 -- @tparam[opt=false] bool force set to truthy to always send an update, even if unchanged.
 -- @return true, or nil+error
 function Property:update(value, force)
-  if self.datatype == "boolean" then
-    value = not not value
-  end
-
   local value, err = self:validate(value)
   if err then
     return nil, err
