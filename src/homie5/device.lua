@@ -135,15 +135,13 @@ function Property:rset(pvalue)
     return nil, "bad value"
   end
 
-  local val, err = self:validate(value)
-  if err then
+  log:debug("[homie] rset: setting '%s = %s'", self.topic, pvalue)
+  local ok, err = self:_set(value, true)
+  if not ok then
     log:warn("[homie] rset: remote device tried setting '%s' with a bad value: %s",
             self.topic, err)
     return nil, "bad value"
   end
-
-  log:debug("[homie] rset: setting '%s = %s'", self.topic, pvalue)
-  self:set(val, true)
   return true
 end
 
@@ -472,15 +470,43 @@ end
 
 
 --- Local application code can set a value through this method.
--- Default just calls `Property:update`. Implement actual changing device behaviour here
--- by overriding. When overriding, it should always end by calling `Property:update`.
 -- @param value the (unpacked) value to set
--- @tparam[opt=false] bool remote if truthy, the change came in over MQTT (via `Property:rset`)
 -- @return truthy on success or falsy+error
-function Property:set(value, remote)
-  return self:update(value)
+function Property:set(value)
+  return self:_set(value, false)
 end
 
+-- internal set implementation
+-- @param value the (unpacked) value to set
+-- @param remote if truthy, the change came in over MQTT (via `Property:rset`)
+-- @return truthy on success or falsy+error
+function Property:_set(value, remote)
+  local value, err = self:validate(value)
+  if err then
+    return nil, err
+  end
+
+  if self.settable and self.retained then
+    -- TODO: update `$target` property
+  end
+  return self:execute(value, remote)
+end
+
+--- Local application code should implement this method for settable properties.
+-- Implement actual changing device behaviour here
+-- by overriding. When overriding, it should call `Property:update`.
+--
+-- If the method is an instantaneous action, then it can immediately call `Property:update`.
+-- However, if the change takes some time, then the method should start a task that will
+-- (repeatedly) call `Property:update` with actual status updates.
+--
+-- Default just calls `Property:update` with the given value.
+-- @param value the (unpacked and validated) value to set
+-- @tparam[opt=false] bool remote if truthy, the change came in over MQTT (via `Property:rset`)
+-- @return truthy on success or falsy+error
+function Property:execute(value, remote)
+  return self:update(value)
+end
 
 do
   local packers
@@ -517,7 +543,7 @@ do
         if format == "rgb" and value.r and value.g and value.b then
           return ("rgb,%s,%s,%s"):format(tostring(value.r), tostring(value.g), tostring(value.b))
         end
-        if format == "xyz" and value.x  and value.y then
+        if format == "xyz" and value.x and value.y then
           return ("xyz,%s,%s"):format(tostring(value.x), tostring(value.y))
         end
       end
@@ -633,9 +659,6 @@ end
 
 -- Device implementation -------------------------------------------------------
 
---- Enum table with possible values for `Device.state`.
--- @field Device.states
-
 --- Current device status, see `Device.states` (string, read-only). Use `Device:set_state`
 -- to change the value.
 -- @field Device.state
@@ -690,7 +713,12 @@ require("homie5.meta")(Device)
 
 log:info("[homie] loaded homie5.lua library; Device (version %s)", Device._VERSION)
 
--- device states enumeration
+--- Enum table with possible values for `Device.state`. Use these instead of magic strings.
+-- @field Device.states
+-- @usage
+-- if mydevice.state == mydevice.states.ready then
+--   -- we're online do something
+-- end
 Device.states = setmetatable({
   init = "init",
   ready = "ready",
@@ -1289,7 +1317,7 @@ function Device:verify_initial_values()
       if err then
         log:error("[homie] no acceptable value available for property '%s': %s", prop.topic, err)
       else
-        prop:set(val)
+        prop:_set(val, false)
       end
     end
   end
@@ -1360,6 +1388,8 @@ end
 -- @tparam string newstate any of the `Device.states` constants.
 -- @tparam[opt=30] number timeout timeout in seconds.
 -- @return success+err
+-- @usage
+-- local ok, err = mydevice:set_state(mydevice.states.sleeping)
 function Device:set_state(newstate, timeout)
   timeout = timeout or 30
   local s = Semaphore.new(1, 0, timeout)
