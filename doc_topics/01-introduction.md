@@ -1,6 +1,18 @@
 # 1. Introduction
 
-## 1.1 Property updates
+## 1.1 Property values
+
+This is what the Lua representations look like (the 'unpacked' values);
+- **string**: this is a Lua string value. Empty string values can be used, the library will take care of conversions when receiving/sending.
+- **integer** & **float**: these are Lua numbers. The library will take care of rounding the values when setting the value (by the `validate` method).
+- **boolean**: a Lua boolean true/false. The `validate` method will convert truthy/falsy values to a Lua `true`/`false` when setting a value.
+- **enum**: this is a Lua string value.
+- **color**: this is represented by a Lua table. With keys `r`, `g`, `b`, or `h`, `s`, `v`, or `x`, `y`, `z`. When receiving values only the received 3 keys will be present (the `validate` method will add the `z` value for the `xyz` format). Internally all 9 keys can be used. When transmitting, the value will be encoded based on the `format` precedence, and the first format that has all 3 keys set.
+- **datetime**: todo
+- **duration**: this is a Lua number, in seconds (with fractions)
+- **json**: this is a Lua table. En/decoding is done via the `lua-cjson` library, and using that library arrays can be marked as such using the `array_mt` metatable. Validation is done using `lua-resty-ljsonschema` which implements draft 4 of the JSONSchema standardization effort.
+
+## 1.2 Property updates
 
 There are 2 entrypoints in the update flow;
 
