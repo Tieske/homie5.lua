@@ -558,6 +558,33 @@ describe("Homie device", function()
       assert.is.False(prop:values_same({ r=1, g=2, b=3 }, "true"))
     end)
 
+    it("color; xyz", function()
+      prop.datatype = "color"
+      prop.format = "xyz"
+      assert.is.True(prop:values_same({ x=0.5, y=0.1 }, { x=0.5, y=0.1 }))
+      assert.is.False(prop:values_same({ x=0.5, y=0.1 }, { x=0.4, y=0.1 }))
+      assert.is.False(prop:values_same({ x=0.5, y=0.1 }, { x=0.5, y=0.2 }))
+      assert.is.False(prop:values_same({ x=0.5, y=0.1 }, true))
+      assert.is.False(prop:values_same({ x=0.5, y=0.1 }, "true"))
+    end)
+
+    it("color; rgb,hsv,xyz based on precedence", function()
+      prop.datatype = "color"
+      prop.format = "rgb,hsv,xyz"
+      local data = {r=10, g=20, b=30, h=40, s=50, v=60, x=0.1, y=0.2}
+      assert.is.True(prop:values_same(data, { r=10, g=20, b=30 }))
+      assert.is.False(prop:values_same(data, { h=40, s=50, v=60 }))
+      assert.is.False(prop:values_same(data, { x=0.1, y=0.2 }))
+      data.r = nil
+      assert.is.False(prop:values_same(data, { r=10, g=20, b=30 }))
+      assert.is.True(prop:values_same(data, { h=40, s=50, v=60 }))
+      assert.is.False(prop:values_same(data, { x=0.1, y=0.2 }))
+      data.h = nil
+      assert.is.False(prop:values_same(data, { r=10, g=20, b=30 }))
+      assert.is.False(prop:values_same(data, { h=40, s=50, v=60 }))
+      assert.is.True(prop:values_same(data, { x=0.1, y=0.2 }))
+    end)
+
     pending("datetime", function()
       -- TODO: implement
     end)

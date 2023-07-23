@@ -511,13 +511,13 @@ do
     color = function(prop, value)
       local formats = pl_utils.split(prop.format, ",")
       for _, format in ipairs(formats) do
-        if format == "hsv" and value.h then
+        if format == "hsv" and value.h and value.s and value.v then
           return ("hsv,%s,%s,%s"):format(tostring(value.h), tostring(value.s), tostring(value.v))
         end
-        if format == "rgb" and value.r then
+        if format == "rgb" and value.r and value.g and value.b then
           return ("rgb,%s,%s,%s"):format(tostring(value.r), tostring(value.g), tostring(value.b))
         end
-        if format == "xyz" and value.x then
+        if format == "xyz" and value.x  and value.y then
           return ("xyz,%s,%s"):format(tostring(value.x), tostring(value.y))
         end
       end
@@ -582,6 +582,10 @@ function Property:values_same(value1, value2)
 
   if type(value1) ~= type(value2) then
     return false
+  end
+
+  if self.datatype == "color" then
+    return self:pack(value1) == self:pack(value2)
   end
 
   if self.datatype == "json" or self.datatype == "color" then
