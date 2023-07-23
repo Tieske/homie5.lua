@@ -372,13 +372,14 @@ describe("Homie device", function()
 
     before_each(function()
       prop.id = "propid"
+      prop.topic = "homie/5/devid/nodeid/propid"
       prop.settable = true
       prop.datatype = "integer"
       prop.format = "0:100:2"
       prop.node = { id = "nodeid" }
       prop.device = {
         states = { init = "init" },
-        base_topic = "homie/devid/",
+        base_topic = "homie/5/devid/",
         send_property_update = function() return true end
       }
     end)
@@ -615,7 +616,7 @@ describe("Homie device", function()
       prop.node = { id = "nodeid" }
       prop.device = {
         send_property_update = function() end,
-        base_topic = "homie/devid/"
+        base_topic = "homie/5/devid/"
       }
       prop.topic = prop.device.base_topic .. prop.node.id .. "/" ..prop.id
     end)
@@ -675,7 +676,7 @@ describe("Homie device", function()
       prop.format = "0:100:5"
       prop.node = { id = "nodeid" }
       prop.device = {
-        base_topic = "homie/devid/",
+        base_topic = "homie/5/devid/",
         send_property_update = function() return true end,
       }
     end)
